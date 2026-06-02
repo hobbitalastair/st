@@ -692,6 +692,7 @@ execsh(char *cmd, char **args)
 	unsetenv("COLUMNS");
 	unsetenv("LINES");
 	unsetenv("TERMCAP");
+	unsetenv("XDG_ACTIVATION_TOKEN");
 	setenv("LOGNAME", pw->pw_name, 1);
 	setenv("USER", pw->pw_name, 1);
 	setenv("SHELL", sh, 1);
@@ -950,8 +951,8 @@ tattrset(int attr)
 {
 	int i, j;
 
-	for (i = 0; i < term.row-1; i++) {
-		for (j = 0; j < term.col-1; j++) {
+	for (i = 0; i < term.row; i++) {
+		for (j = 0; j < term.col; j++) {
 			if (term.line[i][j].mode & attr)
 				return 1;
 		}
@@ -980,14 +981,21 @@ tsetdirtattr(int attr)
 {
 	int i, j;
 
-	for (i = 0; i < term.row-1; i++) {
-		for (j = 0; j < term.col-1; j++) {
+	for (i = 0; i < term.row; i++) {
+		for (j = 0; j < term.col; j++) {
 			if (term.line[i][j].mode & attr) {
 				tsetdirt(i, i);
 				break;
 			}
 		}
 	}
+}
+
+void
+tdirtycursor(void)
+{
+	tsetdirt(term.c.y, term.c.y);
+	tsetdirt(term.ocy, term.ocy);
 }
 
 void
@@ -2675,9 +2683,7 @@ void
 draw(void)
 {
 	int cx = term.c.x, ocx = term.ocx, ocy = term.ocy;
-
-	if (!xstartdraw())
-		return;
+	int y, dirty = 0;
 
 	/* adjust cursor position */
 	LIMIT(term.ocx, 0, term.col-1);
@@ -2687,14 +2693,24 @@ draw(void)
 	if (term.line[term.c.y][cx].mode & ATTR_WDUMMY)
 		cx--;
 
+	for (y = 0; y < term.row; y++) {
+		if (term.dirty[y]) {
+			dirty = 1;
+			break;
+		}
+	}
+	if (!dirty && cx == term.ocx && term.c.y == term.ocy)
+		return;
+
+	if (!xstartdraw())
+		return;
+
 	drawregion(0, 0, term.col, term.row);
 	xdrawcursor(cx, term.c.y, term.line[term.c.y][cx],
 			term.ocx, term.ocy, term.line[term.ocy][term.ocx]);
 	term.ocx = cx;
 	term.ocy = term.c.y;
 	xfinishdraw();
-	if (ocx != term.ocx || ocy != term.ocy)
-		xximspot(term.ocx, term.ocy);
 }
 
 void

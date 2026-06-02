@@ -4,7 +4,12 @@
 
 include config.mk
 
-SRC = st.c x.c
+WAYLAND_SCANNER = `$(PKG_CONFIG) --variable=wayland_scanner wayland-scanner`
+WAYLAND_PROTOCOLS = `$(PKG_CONFIG) --variable=pkgdatadir wayland-protocols`
+XDG_SHELL_XML = $(WAYLAND_PROTOCOLS)/stable/xdg-shell/xdg-shell.xml
+
+PROTO = xdg-shell-protocol.h
+SRC = st.c wayland.c $(PROTO:.h=.c)
 OBJ = $(SRC:.c=.o)
 
 all: st
@@ -16,20 +21,34 @@ config.h:
 	$(CC) $(STCFLAGS) -c $<
 
 st.o: config.h st.h win.h
-x.o: arg.h config.h st.h win.h
+wayland.o: arg.h config.h st.h win.h $(PROTO) drwl.h bufpool.h
 
 $(OBJ): config.h config.mk
 
 st: $(OBJ)
 	$(CC) -o $@ $(OBJ) $(STLDFLAGS)
 
+xdg-shell-protocol.h:
+	$(WAYLAND_SCANNER) client-header $(XDG_SHELL_XML) $@
+xdg-shell-protocol.c:
+	$(WAYLAND_SCANNER) private-code $(XDG_SHELL_XML) $@
+
+test:
+	pytest tests/ -v
+
+update-screenshots:
+	rm -rf tests/screenshots/reference/*.png
+	-pytest tests/ -v
+	cp -r tests/screenshots/failed/*.png tests/screenshots/reference/
+	rm -f tests/screenshots/reference/*.diff.png
+
 clean:
-	rm -f st $(OBJ) st-$(VERSION).tar.gz
+	rm -f st $(OBJ) $(PROTO:.h=.c) $(PROTO) st-$(VERSION).tar.gz
 
 dist: clean
 	mkdir -p st-$(VERSION)
-	cp -R FAQ LEGACY TODO LICENSE Makefile README config.mk\
-		config.def.h st.info st.1 arg.h st.h win.h $(SRC)\
+	cp -R LICENSE Makefile README config.mk \
+		config.def.h st.info st.1 arg.h st.h win.h $(SRC) \
 		st-$(VERSION)
 	tar -cf - st-$(VERSION) | gzip > st-$(VERSION).tar.gz
 	rm -rf st-$(VERSION)

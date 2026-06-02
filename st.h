@@ -20,6 +20,20 @@
 #define TRUECOLOR(r,g,b)	(1 << 24 | (r) << 16 | (g) << 8 | (b))
 #define IS_TRUECOL(x)		(1 << 24 & (x))
 
+#if defined(__GNUC__)
+#define ATTR_ALLOC_SIZE(x)	__attribute__((alloc_size(x)))
+#define ATTR_FORMAT(x, y)	__attribute__((format(printf, x, y)))
+#define ATTR_MALLOC		__attribute__((malloc))
+#define ATTR_NORETURN		__attribute__((noreturn))
+#define ATTR_RETURNS_NONNULL	__attribute__((returns_nonnull))
+#else
+#define ATTR_ALLOC_SIZE(x)
+#define ATTR_FORMAT(x, y)
+#define ATTR_MALLOC
+#define ATTR_NORETURN
+#define ATTR_RETURNS_NONNULL
+#endif
+
 enum glyph_attribute {
 	ATTR_NULL       = 0,
 	ATTR_BOLD       = 1 << 0,
@@ -77,7 +91,7 @@ typedef union {
 	const char *s;
 } Arg;
 
-void die(const char *, ...);
+void die(const char *, ...) ATTR_NORETURN ATTR_FORMAT(1, 2);
 void redraw(void);
 void draw(void);
 
@@ -87,6 +101,7 @@ void sendbreak(const Arg *);
 void toggleprinter(const Arg *);
 
 int tattrset(int);
+void tdirtycursor(void);
 void tnew(int, int);
 void tresize(int, int);
 void tsetdirtattr(int);
@@ -107,9 +122,9 @@ char *getsel(void);
 
 size_t utf8encode(Rune, char *);
 
-void *xmalloc(size_t);
-void *xrealloc(void *, size_t);
-char *xstrdup(const char *);
+void *xmalloc(size_t) ATTR_MALLOC ATTR_ALLOC_SIZE(1) ATTR_RETURNS_NONNULL;
+void *xrealloc(void *, size_t) ATTR_ALLOC_SIZE(2) ATTR_RETURNS_NONNULL;
+char *xstrdup(const char *) ATTR_MALLOC ATTR_RETURNS_NONNULL;
 
 /* config.h globals */
 extern char *utmp;

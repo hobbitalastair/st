@@ -1,0 +1,8 @@
+st
+*.o
+*protocol.h
+*protocol.c
+config.h
+tests/screenshots/failed/
+__pycache__/
+.pytest_cache/
