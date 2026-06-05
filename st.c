@@ -161,6 +161,7 @@ static void csidump(void);
 static void csihandle(void);
 static void csiparse(void);
 static void csireset(void);
+static void osc7cwd(const char *);
 static void osc_color_response(int, int, int);
 static int eschandle(uchar);
 static void strdump(void);
@@ -1892,6 +1893,88 @@ osc_color_response(int num, int index, int is_osc4)
 	}
 }
 
+static int
+hexval(int c)
+{
+	if (BETWEEN(c, '0', '9'))
+		return c - '0';
+	if (BETWEEN(c, 'a', 'f'))
+		return c - 'a' + 10;
+	if (BETWEEN(c, 'A', 'F'))
+		return c - 'A' + 10;
+	return -1;
+}
+
+static int
+islocalhost(const char *host, size_t len)
+{
+	char hostname[HOST_NAME_MAX + 1];
+
+	if (len == 0 || (len == 9 && !strncmp(host, "localhost", len)))
+		return 1;
+
+	if (gethostname(hostname, sizeof(hostname)) < 0)
+		return 0;
+	hostname[sizeof(hostname) - 1] = '\0';
+
+	return strlen(hostname) == len && !strncmp(host, hostname, len);
+}
+
+static char *
+uridecode(const char *s)
+{
+	char *decoded, *d;
+	int hi, lo;
+
+	decoded = xmalloc(strlen(s) + 1);
+	for (d = decoded; *s; s++, d++) {
+		if (*s != '%') {
+			*d = *s;
+			continue;
+		}
+
+		if (!s[1] || !s[2]) {
+			free(decoded);
+			return NULL;
+		}
+		hi = hexval((unsigned char)s[1]);
+		lo = hexval((unsigned char)s[2]);
+		if (hi < 0 || lo < 0 || (hi == 0 && lo == 0)) {
+			free(decoded);
+			return NULL;
+		}
+		*d = hi << 4 | lo;
+		s += 2;
+	}
+	*d = '\0';
+
+	return decoded;
+}
+
+static void
+osc7cwd(const char *uri)
+{
+	const char prefix[] = "file://";
+	const char *host, *path;
+	char *decoded;
+
+	if (strncmp(uri, prefix, sizeof(prefix) - 1))
+		return;
+
+	host = uri + sizeof(prefix) - 1;
+	if (!(path = strchr(host, '/')))
+		return;
+	if (!islocalhost(host, path - host))
+		return;
+
+	decoded = uridecode(path);
+	if (!decoded)
+		return;
+	if (decoded[0] == '/')
+		chdir(decoded);
+	free(decoded);
+}
+
 void
 strhandle(void)
 {
@@ -1923,6 +2006,10 @@ strhandle(void)
 		case 2:
 			if (narg > 1)
 				xsettitle(strescseq.args[1]);
+			return;
+		case 7: /* set current working directory */
+			if (narg > 1)
+				osc7cwd(strescseq.args[1]);
 			return;
 		case 52: /* manipulate selection data */
 			if (narg > 2 && allowwindowops) {
