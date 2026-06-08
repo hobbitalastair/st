@@ -22,6 +22,7 @@
 #include "drwl.h"
 #include "bufpool.h"
 #include "xdg-shell-protocol.h"
+#include "xdg-activation-v1-client-protocol.h"
 
 char *argv0;
 #include "arg.h"
@@ -127,6 +128,7 @@ static struct xdg_toplevel *xdg_toplevel;
 static struct wl_surface *surface;
 static struct wl_callback *frame_callback;
 static struct wl_output *output;
+static struct xdg_activation_v1 *activation_manager;
 static int32_t scale = 1;
 static int32_t win_w, win_h;
 static int frame_pending;
@@ -1681,6 +1683,9 @@ registry_handle_global(void *data, struct wl_registry *registry,
 			&wl_output_interface, MIN(version, 4));
 		wl_output_add_listener(output, &output_listener, NULL);
 	}
+	else if (!strcmp(interface, xdg_activation_v1_interface.name))
+		activation_manager = wl_registry_bind(registry, name,
+			&xdg_activation_v1_interface, 1);
 }
 
 static const struct wl_registry_listener registry_listener = {

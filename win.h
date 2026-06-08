@@ -38,4 +38,5 @@ void xsetmode(int, unsigned int);
 void xsetpointermotion(int);
 void xsetsel(char *);
 int xstartdraw(void);
+const char *xgetactivationtoken(const char *);
 

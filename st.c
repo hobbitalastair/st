@@ -2065,6 +2065,19 @@ strhandle(void)
 				tfulldirt();
 			}
 			return;
+		case 703: /* request Wayland activation token */
+		{
+			const char *token = xgetactivationtoken(
+				narg > 1 ? strescseq.args[1] : NULL);
+			if (token) {
+				char buf[1024];
+				int n = snprintf(buf, sizeof(buf),
+					"\033]703;%s\007", token);
+				ttywrite(buf, n, 0);
+				free((void *)token);
+			}
+			return;
+		}
 		case 110: /* reset dynamic VT100 text foreground color */
 		case 111: /* reset dynamic VT100 text background color */
 		case 112: /* reset dynamic text cursor color */
