@@ -1025,6 +1025,8 @@ keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 {
 	struct itimerspec spec = { 0 };
 	enum wl_keyboard_key_state key_state = _key_state;
+	int pressed = key_state == WL_KEYBOARD_KEY_STATE_PRESSED;
+	int repeated = key_state == WL_KEYBOARD_KEY_STATE_REPEATED;
 	kbd.serial = serial;
 	if (!kbd.state)
 		return;
@@ -1035,7 +1037,7 @@ keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 	if (kbd.alt)   mods |= 8;
 	if (kbd.shift) mods |= 1;
 
-	if (key_state == WL_KEYBOARD_KEY_STATE_PRESSED && kbd.compose_state) {
+	if (pressed && kbd.compose_state) {
 		switch (xkb_compose_state_feed(kbd.compose_state, sym)) {
 		case XKB_COMPOSE_FEED_ACCEPTED:
 			switch (xkb_compose_state_get_status(kbd.compose_state)) {
@@ -1063,10 +1065,10 @@ keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 		}
 	}
 
-	if (key_state == WL_KEYBOARD_KEY_STATE_PRESSED)
+	if (pressed || repeated)
 		kpress(sym, mods);
 
-	if (key_state == WL_KEYBOARD_KEY_STATE_PRESSED && kbd.repeat.period >= 0
+	if (pressed && kbd.repeat.period >= 0
 			&& kbd.repeat.delay > 0
 			&& xkb_keymap_key_repeats(kbd.keymap, key + 8)) {
 		kbd.repeat.key_state = key_state;
@@ -1669,7 +1671,7 @@ registry_handle_global(void *data, struct wl_registry *registry,
 			&xdg_wm_base_interface, 1);
 	else if (!strcmp(interface, wl_seat_interface.name)) {
 		seat = wl_registry_bind(registry, name,
-			&wl_seat_interface, MIN(version, 7));
+			&wl_seat_interface, MIN(version, 10));
 		wl_seat_add_listener(seat, &seat_listener, NULL);
 		ensure_data_device();
 	}
